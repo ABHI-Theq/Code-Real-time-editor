@@ -1,0 +1,25 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing: border-box;
+}
+/* For Webkit-based browsers (Chrome, Safari, Edge) */
+::-webkit-scrollbar {
+    width: 10px; /* Adjust the width of the scrollbar */
+    height: 4px; /* Adjust the height for horizontal scrollbar */
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(0, 0, 0, 0.3); /* Transparent color for the thumb */
+    border-radius: 10px; /* Rounded corners */
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: transparent; /* Make the track transparent */
+  }
+  
+  /* Optional: If you want to apply styles to the scrollbar for when it's hovered */
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(0, 0, 0, 0.5); /* Darker thumb when hovered */
+  }
+  
