@@ -39,7 +39,7 @@ A powerful real-time collaborative code editor built with React, Vite, and Socke
 
 1. Clone the repository:
 ```sh
-git clone https://github.com/yourusername/realtime-code-editor.git
+git clone https://github.com/ABHI-Theq/realtime-code-editor.git
 cd realtime-code-editor
 ```
 
@@ -127,7 +127,4 @@ Contributions are welcome! Feel free to open issues and submit pull requests.
 This project is not licensed yet.
 
 ## 🙏 Acknowledgments
-
-- Thanks to all contributors who have helped shape this project
-- Inspired by collaborative coding platforms
 - Built with ❤️ for the developer community
