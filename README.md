@@ -2,7 +2,7 @@
 
 ![Code Editor Banner](https://images.unsplash.com/photo-1461749280684-dccba630e2f6?auto=format&fit=crop&q=80&w=1200&h=400)
 
-A powerful real-time collaborative code editor built with React, Vite, and Socket.IO. Code together, learn together! ✨
+A powerful real-time collaborative code editor built with React, Vite, and Socket.IO. Code together, learn together! ✨ Now with side button enhancements and group chat functionality!
 
 ## ✨ Features
 
@@ -10,6 +10,9 @@ A powerful real-time collaborative code editor built with React, Vite, and Socke
 - 🔐 User authentication and room management
 - 🎨 Syntax highlighting and code autocompletion
 - 📱 Responsive design for all devices
+- ▶️ Code execution with output display
+- 🗨️ Group chat for seamless communication
+- 📌 Enhanced side buttons for quick actions
 
 ## 🛠️ Technologies Used
 
@@ -39,7 +42,7 @@ A powerful real-time collaborative code editor built with React, Vite, and Socke
 
 1. Clone the repository:
 ```sh
-git clone https://github.com/ABHI-Theq/realtime-code-editor.git
+git clone https://github.com/yourusername/realtime-code-editor.git
 cd realtime-code-editor
 ```
 
@@ -118,6 +121,9 @@ realtime-code-editor/
 ![Editor Interface](https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=1200&h=600)
 *Real-time collaboration in action*
 
+![Group Chat Interface](https://images.unsplash.com/photo-1517245386807-bb43f82c33c4?auto=format&fit=crop&q=80&w=1200&h=600)
+*Group chat for seamless communication*
+
 ## 🤝 Contributing
 
 Contributions are welcome! Feel free to open issues and submit pull requests.
@@ -127,4 +133,7 @@ Contributions are welcome! Feel free to open issues and submit pull requests.
 This project is not licensed yet.
 
 ## 🙏 Acknowledgments
+
+- Thanks to all contributors who have helped shape this project
+- Inspired by collaborative coding platforms
 - Built with ❤️ for the developer community

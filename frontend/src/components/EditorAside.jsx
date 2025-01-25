@@ -13,7 +13,7 @@ const EditorAside = ({username,clients,leaveRoom,copyRoom}) => {
     
     
   return (
-        <div className=' w-[20%] h-screen p-4 border-r-4 border-r-white aside'>
+        <div className=' w-[22%] h-screen p-4 border-r-4 border-r-white aside'>
         <div className=''>
           <div className='logo'>
             <img className='w-50 h-20' src="/code-sync.png" alt="" />

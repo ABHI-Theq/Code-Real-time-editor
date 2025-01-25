@@ -53,6 +53,12 @@ io.on('connection', (socket) => {
     io.to(roomId).emit("executed-code",{content,roomId});
   })
 
+  socket.on('GroupMessage', (data) => {
+    const { message,username, roomId } = data;
+    io.to(roomId).emit('new-message', { message, username, roomId, time: Date.now(), socketId: socket.id });
+  });
+
+
   socket.on('leaveRoom', (data) => {
     if (!data.roomId || !data.username) {
       socket.emit('error', 'Invalid room or username');
