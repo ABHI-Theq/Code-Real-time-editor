@@ -47,6 +47,12 @@ io.on('connection', (socket) => {
     io.to(data.roomId).emit('user-joined', { username: data.username, socketId: socket.id, clients });
   });
 
+  socket.on("run-code",(data)=>{
+    const {content,roomId} = data;
+    
+    io.to(roomId).emit("executed-code",{content,roomId});
+  })
+
   socket.on('leaveRoom', (data) => {
     if (!data.roomId || !data.username) {
       socket.emit('error', 'Invalid room or username');
@@ -58,11 +64,15 @@ io.on('connection', (socket) => {
     if (roomData.has(data.roomId)) {
       const users = roomData.get(data.roomId);
       roomData.set(data.roomId, users.filter((user) => user.username !== data.username));
+
+      // Reset editor content if all users have left the room
+      if (roomData.get(data.roomId).length === 0) {
+        editorContentMap.set(data.roomId, "console.log('hello world')");
+      }
     }
 
-    const clients=roomData.get(data.roomId)
-
-    io.to(data.roomId).emit('user-left', { username: data.username, socketId: socket.id ,clients});
+    const clients = roomData.get(data.roomId);
+    io.to(data.roomId).emit('user-left', { username: data.username, socketId: socket.id, clients });
   });
 
   socket.on('editor-update', (data) => {
@@ -88,6 +98,11 @@ io.on('connection', (socket) => {
       for (const roomId of socket.rooms) {
         if (roomId !== socket.id) {
           io.to(roomId).emit('user-left', `${username} left the room`);
+
+          // Reset editor content if all users have left the room
+          if (roomData.get(roomId).length === 0) {
+            editorContentMap.set(roomId, "console.log('hello world')");
+          }
         }
       }
     } else {

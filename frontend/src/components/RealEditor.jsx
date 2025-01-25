@@ -1,36 +1,38 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import AceEditor from 'react-ace';
-
-// Import Ace modes and themes
 import 'ace-builds/src-noconflict/mode-javascript';
 import 'ace-builds/src-noconflict/theme-monokai';
 
-const CodeEditor = ({handleEditorChange,editorContent}) => {
-  // const handleEditorChange = (newValue) => {
-  //   console.log("Editor content changed:", newValue);
-  // };
+const CodeEditor = ({ handleEditorChange, editorContent }) => {
+  const editorRef = useRef(null);
+
+  useEffect(() => {
+    const editor = editorRef.current.editor;
+
+    return () => {
+      editor.off('changeCursor');
+    };
+  }, []);
 
   return (
-    <div>
-      <AceEditor className=''
-        mode="javascript"             // Set the language mode
-        theme="monokai"               // Set the theme
-        name="code-editor"            // Give the editor a unique name
-        value={editorContent}
-        onChange={handleEditorChange} // Handle changes in the editor
-        editorProps={{ $blockScrolling: true }} // Prevent the "block scrolling" warning
-        width="100%"                  // Set editor width
-        height="98vh"                // Set editor height
-        fontSize={16}                 // Set font size
-        showGutter={true}             // Show line numbers
-        highlightActiveLine={true}    // Highlight the current line
-        setOptions={{
-          enableBasicAutocompletion: true,  // Enable autocompletion
-          enableLiveAutocompletion: true,   // Enable live autocompletion
-          enableSnippets: true,             // Enable code snippets
-        }}
-      />
-    </div>
+    <AceEditor
+      ref={editorRef}
+      mode="javascript"
+      theme="monokai"
+      name="editor"
+      value={editorContent}
+      onChange={handleEditorChange}
+      width="99%"
+      height="100%"
+      fontSize={16}
+      setOptions={{
+        enableBasicAutocompletion: true,
+        enableLiveAutocompletion: true,
+        enableSnippets: true,
+        showLineNumbers: true,
+        tabSize: 2,
+      }}
+    />
   );
 };
 
