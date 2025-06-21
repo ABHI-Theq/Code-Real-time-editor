@@ -6,12 +6,13 @@ const Chat = ({ username, roomId, messages }) => {
   const [text, setText] = useState('');
   const chatEndRef = useRef(null);
 
+  // Function to handle message submission
   function onMessageSubmit() {
-    // console.log(text);
     socket.emit('GroupMessage', { message: text, username, roomId });
     setText('');
   }
 
+  // Scroll to the bottom of the chat when new messages are added
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);

@@ -15,10 +15,14 @@ const io = new Server(server, {
 const userSocketMap = new Map();
 const roomData = new Map();
 const editorContentMap = new Map();
+// const usersMovingCursor = {};
+
+
 
 io.on('connection', (socket) => {
   console.log('A user connected: ', socket.id);
 
+  // Handle user joining a room
   socket.on('user-joined-room', (data) => {
     if (!data.roomId || !data.username) {
       socket.emit('error', 'Invalid room or username');
@@ -47,18 +51,19 @@ io.on('connection', (socket) => {
     io.to(data.roomId).emit('user-joined', { username: data.username, socketId: socket.id, clients });
   });
 
-  socket.on("run-code",(data)=>{
-    const {content,roomId} = data;
-    
-    io.to(roomId).emit("executed-code",{content,roomId});
-  })
+  // Handle code execution
+  socket.on("run-code", (data) => {
+    const { content, roomId } = data;
+    io.to(roomId).emit("executed-code", { content, roomId });
+  });
 
+  // Handle group messages
   socket.on('GroupMessage', (data) => {
-    const { message,username, roomId } = data;
+    const { message, username, roomId } = data;
     io.to(roomId).emit('new-message', { message, username, roomId, time: Date.now(), socketId: socket.id });
   });
 
-
+  // Handle user leaving a room
   socket.on('leaveRoom', (data) => {
     if (!data.roomId || !data.username) {
       socket.emit('error', 'Invalid room or username');
@@ -81,6 +86,7 @@ io.on('connection', (socket) => {
     io.to(data.roomId).emit('user-left', { username: data.username, socketId: socket.id, clients });
   });
 
+  // Handle editor content updates
   socket.on('editor-update', (data) => {
     if (!data.roomId) {
       socket.emit('error', 'Invalid room');
@@ -92,6 +98,26 @@ io.on('connection', (socket) => {
     socket.broadcast.to(data.roomId).emit("sending-updated-content", { content: data.content });
   });
 
+  // Handle cursor movement changes
+  // socket.on('cursor-move', (data) => {
+  //   if (!data.roomId || !data.username) {
+  //     socket.emit('error', 'Invalid room or username');
+  //     return;
+  //   }
+  //   usersMovingCursor[data.username] = data.position;
+  //   socket.broadcast.to(data.roomId).emit('update-cursor-users', usersMovingCursor);
+  // });
+
+  // socket.on('cursor-stop', (data) => {
+  //   if (!data.roomId || !data.username) {
+  //     socket.emit('error', 'Invalid room or username');
+  //     return;
+  //   }
+  //   delete usersMovingCursor[data.username];
+  //   socket.broadcast.to(data.roomId).emit('update-cursor-users', usersMovingCursor);
+  // });
+
+  // Handle user disconnection
   socket.on('disconnect', () => {
     const username = [...userSocketMap.entries()].find(
       ([, id]) => id === socket.id
@@ -99,11 +125,13 @@ io.on('connection', (socket) => {
 
     if (username) {
       userSocketMap.delete(username);
+      // delete usersMovingCursor[username];
       console.log(`User ${username} disconnected`);
 
       for (const roomId of socket.rooms) {
         if (roomId !== socket.id) {
           io.to(roomId).emit('user-left', `${username} left the room`);
+          io.to(roomId).emit('update-cursor-users', usersMovingCursor);
 
           // Reset editor content if all users have left the room
           if (roomData.get(roomId).length === 0) {

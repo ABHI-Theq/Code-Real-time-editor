@@ -14,6 +14,11 @@ app.use(
 );
 
 
+app.get('/', (req, res) => {
+    res.status(200).json({
+        message: 'Welcome to the Code Editor API'
+    });
+});
 
 
 // app.get('/create',async(req,res)=>{
