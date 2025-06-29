@@ -16,7 +16,6 @@ const userSocketMap = new Map();
 const roomData = new Map();
 const editorContentMap = new Map();
 const userRoomMap = new Map(); // Track which room each user is in
-const userCursors = new Map(); // Track user cursor positions
 
 io.on('connection', (socket) => {
   console.log('A user connected: ', socket.id);
@@ -81,21 +80,10 @@ io.on('connection', (socket) => {
     io.to(data.roomId).emit('user-joined', { username: data.username, socketId: socket.id, clients });
   });
 
-  // Handle cursor position updates
-  socket.on('cursor-position', (data) => {
-    const { roomId, username, position } = data;
-    if (!roomId || !username || !position) return;
-
-    // Store cursor position
-    const roomCursors = userCursors.get(roomId) || new Map();
-    roomCursors.set(username, position);
-    userCursors.set(roomId, roomCursors);
-
-    // Broadcast cursor position to other users in the room (not to sender)
-    socket.broadcast.to(roomId).emit('user-cursor-position', {
-      username,
-      position
-    });
+  // Handle typing indicator
+  socket.on('user-typing', (data) => {
+    const { roomId, username } = data;
+    if (!roomId || !username) return;
 
     // Broadcast typing indicator to other users in the room (not to sender)
     socket.broadcast.to(roomId).emit('user-typing', { username });
@@ -134,15 +122,6 @@ io.on('connection', (socket) => {
     // Remove from user mappings
     userRoomMap.delete(data.username);
 
-    // Remove cursor data
-    const roomCursors = userCursors.get(data.roomId);
-    if (roomCursors) {
-      roomCursors.delete(data.username);
-      if (roomCursors.size === 0) {
-        userCursors.delete(data.roomId);
-      }
-    }
-
     if (roomData.has(data.roomId)) {
       const users = roomData.get(data.roomId);
       roomData.set(data.roomId, users.filter((user) => user.username !== data.username));
@@ -179,17 +158,6 @@ io.on('connection', (socket) => {
       userSocketMap.delete(username);
       const roomId = userRoomMap.get(username);
       userRoomMap.delete(username);
-      
-      // Remove cursor data
-      if (roomId) {
-        const roomCursors = userCursors.get(roomId);
-        if (roomCursors) {
-          roomCursors.delete(username);
-          if (roomCursors.size === 0) {
-            userCursors.delete(roomId);
-          }
-        }
-      }
       
       console.log(`User ${username} disconnected`);
 
