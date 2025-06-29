@@ -26,10 +26,13 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
     };
 
     // Handle cursor position changes
-    const handleCursorChange = (selection) => {
-        if (!socket || !roomId || !username) return;
+    const handleCursorChange = () => {
+        if (!socket || !roomId || !username || !editorRef.current) return;
 
-        const cursor = selection.getCursor();
+        const editor = editorRef.current.editor;
+        if (!editor) return;
+
+        const cursor = editor.selection.getCursor();
         socket.emit('cursor-position', {
             roomId,
             username,
