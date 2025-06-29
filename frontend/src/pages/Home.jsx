@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 function Home() {
     return (
-        <div className='min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex flex-col justify-center items-center px-4 relative overflow-hidden py-8 sm:py-12'>
+        <div className='min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 flex flex-col justify-center items-center px-4 relative overflow-hidden py-12 sm:py-16'>
             {/* Background decorations */}
             <div className="absolute inset-0 overflow-hidden">
                 <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl"></div>
@@ -16,14 +16,28 @@ function Home() {
             <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:50px_50px] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,#000_70%,transparent_110%)]"></div>
 
             {/* Header with more top spacing */}
-            <div className="text-center mb-12 sm:mb-16 relative z-10 mt-8 sm:mt-16">
-                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-green-400 bg-clip-text text-transparent">
+            <div className="text-center mb-16 sm:mb-20 relative z-10 mt-12 sm:mt-20">
+                {/* Elegant Code Sync Title */}
+                <div className="mb-8">
+                    <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-white mb-2 tracking-wider">
+                        <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-green-400 bg-clip-text text-transparent">
+                            CODE
+                        </span>
+                        <span className="mx-2 text-gray-300">•</span>
+                        <span className="bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                            SYNC
+                        </span>
+                    </h2>
+                    <div className="h-px bg-gradient-to-r from-transparent via-gray-400 to-transparent w-32 mx-auto"></div>
+                </div>
+
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-8 bg-gradient-to-r from-blue-400 via-purple-400 to-green-400 bg-clip-text text-transparent">
                     Code Together
                 </h1>
-                <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed mb-8">
+                <p className="text-lg sm:text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed mb-10">
                     Real-time collaborative code editor for seamless team development
                 </p>
-                <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-400">
+                <div className="flex flex-wrap justify-center gap-6 text-sm text-gray-400">
                     <div className="flex items-center space-x-2">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                         <span>Live Collaboration</span>
@@ -40,12 +54,12 @@ function Home() {
             </div>
 
             {/* Form */}
-            <div className="relative z-10 w-full max-w-md mb-12 sm:mb-16">
+            <div className="relative z-10 w-full max-w-md mb-16 sm:mb-20">
                 <Form />
             </div>
 
             {/* Features */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto relative z-10 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto relative z-10 mb-12">
                 <div className="text-center p-6 rounded-2xl bg-white/5 backdrop-blur-sm border border-white/10">
                     <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
                         <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -45,6 +45,33 @@ const Form = () => {
             return;
         }
 
+        // Check if user is already in a room
+        const existingRoomData = Object.keys(sessionStorage).find(key => 
+            key.startsWith('room_') && key.includes(`_${username}`)
+        );
+
+        if (existingRoomData) {
+            const existingRoomId = existingRoomData.split('_')[1];
+            if (existingRoomId === roomId) {
+                toast.error('You are already in this room!', {
+                    style: {
+                        background: '#EF4444',
+                        color: '#fff',
+                    },
+                });
+                return;
+            } else {
+                // Clear previous room data
+                sessionStorage.removeItem(existingRoomData);
+                toast.success('Switched from previous room', {
+                    style: {
+                        background: '#10B981',
+                        color: '#fff',
+                    },
+                });
+            }
+        }
+
         setIsLoading(true);
         
         setTimeout(() => {
@@ -61,13 +88,20 @@ const Form = () => {
             <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-gradient-to-tr from-green-500/20 to-blue-500/20 rounded-full blur-xl"></div>
             
             <div className="relative z-10">
-                {/* Logo */}
+                {/* Elegant Code Sync Title */}
                 <div className="flex justify-center mb-6">
-                    <img 
-                        src="/code-sync.png" 
-                        className='w-20 h-20 sm:w-24 sm:h-24 object-contain' 
-                        alt="Code Sync Logo" 
-                    />
+                    <div className="text-center">
+                        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 tracking-wider">
+                            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-green-400 bg-clip-text text-transparent">
+                                CODE
+                            </span>
+                            <span className="mx-2 text-gray-300">•</span>
+                            <span className="bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                SYNC
+                            </span>
+                        </h2>
+                        <div className="h-px bg-gradient-to-r from-transparent via-gray-400 to-transparent w-20 mx-auto"></div>
+                    </div>
                 </div>
 
                 {/* Title */}

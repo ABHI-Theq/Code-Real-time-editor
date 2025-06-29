@@ -49,6 +49,7 @@ const EditorPage = () => {
         // Check if user is trying to join the same room again
         const currentRoomData = sessionStorage.getItem(`room_${roomId}_${username}`);
         if (currentRoomData) {
+            setIsUserAlreadyInRoom(true);
             toast.error('You are already in this room! Redirecting to home page.', {
                 style: {
                     background: '#EF4444',
@@ -227,9 +228,18 @@ const EditorPage = () => {
                 <div className='absolute top-0 left-0 right-0 z-50 bg-gray-900/95 backdrop-blur-sm border-b border-gray-700 p-4'>
                     <div className='flex items-center justify-between'>
                         <div className='flex items-center space-x-3'>
-                            <img src="/code-sync.png" className='w-8 h-8' alt="Logo" />
+                            <div className="text-center">
+                                <h2 className="text-lg font-bold text-white tracking-wider">
+                                    <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-green-400 bg-clip-text text-transparent">
+                                        CODE
+                                    </span>
+                                    <span className="mx-1 text-gray-300">•</span>
+                                    <span className="bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                        SYNC
+                                    </span>
+                                </h2>
+                            </div>
                             <div>
-                                <h1 className='text-lg font-bold'>Code Editor</h1>
                                 <p className='text-xs text-gray-400'>{userData.length} members</p>
                             </div>
                         </div>

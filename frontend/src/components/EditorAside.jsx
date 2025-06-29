@@ -6,15 +6,21 @@ const EditorAside = ({ username, clients, leaveRoom, copyRoom }) => {
         <div className='w-full sm:w-80 lg:w-96 h-full bg-gradient-to-b from-gray-900 to-gray-800 border-r border-gray-700 flex flex-col'>
             {/* Header */}
             <div className='p-4 sm:p-6 border-b border-gray-700'>
-                <div className='flex items-center justify-center mb-4'>
-                    <img 
-                        className='w-16 h-16 sm:w-20 sm:h-20 object-contain' 
-                        src="/code-sync.png" 
-                        alt="Code Sync Logo" 
-                    />
+                {/* Elegant Code Sync Title */}
+                <div className="flex items-center justify-center mb-6">
+                    <div className="text-center">
+                        <h2 className="text-2xl sm:text-3xl font-bold text-white mb-2 tracking-wider">
+                            <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-green-400 bg-clip-text text-transparent">
+                                CODE
+                            </span>
+                            <span className="mx-2 text-gray-300">•</span>
+                            <span className="bg-gradient-to-r from-green-400 via-blue-400 to-purple-400 bg-clip-text text-transparent">
+                                SYNC
+                            </span>
+                        </h2>
+                        <div className="h-px bg-gradient-to-r from-transparent via-gray-400 to-transparent w-24 mx-auto"></div>
+                    </div>
                 </div>
-                
-                <div className='h-px bg-gradient-to-r from-transparent via-gray-600 to-transparent mb-4'></div>
                 
                 <h3 className='text-xl sm:text-2xl font-bold text-white text-center mb-2'>
                     Connected Users
