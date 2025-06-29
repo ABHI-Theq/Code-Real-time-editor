@@ -5,54 +5,50 @@ import 'ace-builds/src-noconflict/theme-monokai';
 import { useSocket } from '../context/SocketContext';
 
 const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => {
-  const editorRef = useRef(null);
-  const { socket } = useSocket();
+    const editorRef = useRef(null);
+    const { socket } = useSocket();
 
-  useEffect(() => {
-    const editor = editorRef.current.editor;
+    useEffect(() => {
+        const editor = editorRef.current?.editor;
+        if (!editor) return;
 
-  //   const emitCursorPosition = () => {
-  //     const cursorPosition = editor.getCursorPosition();
-  //     socket.emit('cursor-move', { position: cursorPosition, roomId, username });
-  //   };
+        // Add custom styling to the editor
+        editor.setOptions({
+            fontFamily: 'JetBrains Mono, Fira Code, Monaco, Consolas, monospace',
+            fontSize: window.innerWidth < 640 ? 14 : 16,
+        });
 
-  //   const handleCursorChange = () => {
-  //     emitCursorPosition();
-  //     clearTimeout(editorRef.current.cursorTimeout);
-  //     editorRef.current.cursorTimeout = setTimeout(() => {
-  //       socket.emit('cursor-stop', { roomId, username });
-  //     }, 1000);
-  //   };
+    }, [socket, roomId, username]);
 
-  //   editor.getSession().selection.on("changeCursor", handleCursorChange);
-  //   editor.on("input", handleCursorChange);
-
-  //   return () => {
-  //     editor.getSession().selection.off("changeCursor", handleCursorChange);
-  //     editor.off("input", handleCursorChange);
-  //   };
-  }, [socket, roomId, username]);
-
-  return (
-    <AceEditor
-      ref={editorRef}
-      mode="javascript"
-      theme="monokai"
-      name="editor"
-      value={editorContent}
-      onChange={handleEditorChange}
-      width="99%"
-      height="100%"
-      fontSize={16}
-      setOptions={{
-        enableBasicAutocompletion: true,
-        enableLiveAutocompletion: true,
-        enableSnippets: true,
-        showLineNumbers: true,
-        tabSize: 2,
-      }}
-    />
-  );
+    return (
+        <div className="h-full w-full rounded-lg overflow-hidden border border-gray-700 shadow-2xl">
+            <AceEditor
+                ref={editorRef}
+                mode="javascript"
+                theme="monokai"
+                name="editor"
+                value={editorContent}
+                onChange={handleEditorChange}
+                width="100%"
+                height="100%"
+                fontSize={window.innerWidth < 640 ? 14 : 16}
+                setOptions={{
+                    enableBasicAutocompletion: true,
+                    enableLiveAutocompletion: true,
+                    enableSnippets: true,
+                    showLineNumbers: true,
+                    tabSize: 2,
+                    wrap: true,
+                    showPrintMargin: false,
+                    highlightActiveLine: true,
+                    highlightSelectedWord: true,
+                }}
+                editorProps={{
+                    $blockScrolling: true
+                }}
+            />
+        </div>
+    );
 };
 
 export default CodeEditor;
