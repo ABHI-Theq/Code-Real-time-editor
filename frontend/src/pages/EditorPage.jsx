@@ -5,6 +5,7 @@ import CodeEditor from '../components/RealEditor';
 import { useSocket } from '../context/SocketContext';
 import toast from 'react-hot-toast';
 import Chat from '../components/Chat';
+import MessageNotification from '../components/MessageNotification';
 import team from '../assets/team.png';
 import groupChat from '../assets/groupChat.png';
 
@@ -24,6 +25,7 @@ const EditorPage = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [userData, setUserData] = useState([]);
     const [isUserAlreadyInRoom, setIsUserAlreadyInRoom] = useState(false);
+    const [messageNotification, setMessageNotification] = useState(null);
 
     // Handle responsive behavior
     useEffect(() => {
@@ -128,6 +130,10 @@ const EditorPage = () => {
         setChatsection(type === 'chat');
     };
 
+    const handleCloseNotification = () => {
+        setMessageNotification(null);
+    };
+
     useEffect(() => {
         if (username && roomId && !isUserAlreadyInRoom) {
             socket.emit("user-joined-room", { username, roomId });
@@ -163,6 +169,11 @@ const EditorPage = () => {
 
         socket.on('new-message', (data) => {
             setMessages((prevMessages) => [...prevMessages, data]);
+            
+            // Show notification popup only if message is from another user and chat is not open
+            if (data.username !== username && (!chatsection || (isMobile && !sidebarOpen))) {
+                setMessageNotification(data);
+            }
         });
 
         socket.on('error', (errorMessage) => {
@@ -207,7 +218,7 @@ const EditorPage = () => {
             sessionStorage.removeItem(`room_${roomId}_${username}`);
             socket.emit('leaveRoom', { username, roomId });
         };
-    }, [socket, username, roomId, navigate, isUserAlreadyInRoom]);
+    }, [socket, username, roomId, navigate, isUserAlreadyInRoom, chatsection, isMobile, sidebarOpen]);
 
     // Don't render if user is already in room
     if (isUserAlreadyInRoom) {
@@ -368,6 +379,12 @@ const EditorPage = () => {
                     </div>
                 </div>
             </div>
+
+            {/* Message Notification Popup */}
+            <MessageNotification 
+                message={messageNotification} 
+                onClose={handleCloseNotification} 
+            />
         </div>
     );
 };
