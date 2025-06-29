@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import EditorAside from '../components/EditorAside';
 import CodeEditor from '../components/RealEditor';
@@ -26,6 +26,23 @@ const EditorPage = () => {
     const [userData, setUserData] = useState([]);
     const [isUserAlreadyInRoom, setIsUserAlreadyInRoom] = useState(false);
     const [messageNotification, setMessageNotification] = useState(null);
+    
+    // Use refs to track current state values for socket callbacks
+    const currentUsernameRef = useRef(username);
+    const currentRoomIdRef = useRef(roomId);
+    const currentChatsectionRef = useRef(chatsection);
+    const currentSidebarOpenRef = useRef(sidebarOpen);
+    const currentIsMobileRef = useRef(isMobile);
+    const hasJoinedRoomRef = useRef(false);
+
+    // Update refs when state changes
+    useEffect(() => {
+        currentUsernameRef.current = username;
+        currentRoomIdRef.current = roomId;
+        currentChatsectionRef.current = chatsection;
+        currentSidebarOpenRef.current = sidebarOpen;
+        currentIsMobileRef.current = isMobile;
+    }, [username, roomId, chatsection, sidebarOpen, isMobile]);
 
     // Handle responsive behavior
     useEffect(() => {
@@ -41,7 +58,7 @@ const EditorPage = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Check if user is already in room
+    // Check if user is already in room - only run once
     useEffect(() => {
         if (!username || !roomId) {
             navigate('/');
@@ -72,9 +89,9 @@ const EditorPage = () => {
             joinedAt: Date.now()
         }));
 
-    }, [username, roomId, navigate]);
+    }, []); // Empty dependency array - only run once
 
-    const copyToClipboard = () => {
+    const copyToClipboard = useCallback(() => {
         navigator.clipboard.writeText(roomId).then(() => {
             toast.success("Room ID copied successfully", {
                 style: {
@@ -90,21 +107,25 @@ const EditorPage = () => {
                 },
             });
         });
-    };
+    }, [roomId]);
 
-    const leaveRoom = () => {
+    const leaveRoom = useCallback(() => {
         // Clear session storage when leaving
         sessionStorage.removeItem(`room_${roomId}_${username}`);
-        socket.emit('leaveRoom', { username, roomId });
+        if (socket && hasJoinedRoomRef.current) {
+            socket.emit('leaveRoom', { username, roomId });
+        }
         navigate('/');
-    };
+    }, [socket, username, roomId, navigate]);
 
-    const handleEditorChange = (newValue) => {
+    const handleEditorChange = useCallback((newValue) => {
         setEditorContent(newValue);
-        socket.emit('editor-update', { content: newValue, roomId });
-    };
+        if (socket && roomId) {
+            socket.emit('editor-update', { content: newValue, roomId });
+        }
+    }, [socket, roomId]);
 
-    const executeCode = () => {
+    const executeCode = useCallback(() => {
         try {
             const log = [];
             const originalConsoleLog = console.log;
@@ -120,28 +141,34 @@ const EditorPage = () => {
             setExecutionResult(`Error: ${error.message}`);
             setOutput(true);
         }
-    };
+    }, [editorContent]);
 
-    const toggleSidebar = (type) => {
+    const toggleSidebar = useCallback((type) => {
         if (isMobile) {
             setSidebarOpen(!sidebarOpen);
         }
         setEditoraside(type === 'members');
         setChatsection(type === 'chat');
-    };
+    }, [isMobile, sidebarOpen]);
 
-    const handleCloseNotification = () => {
+    const handleCloseNotification = useCallback(() => {
         setMessageNotification(null);
-    };
+    }, []);
 
+    // Socket event handlers - only set up once
     useEffect(() => {
-        if (username && roomId && !isUserAlreadyInRoom) {
-            socket.emit("user-joined-room", { username, roomId });
+        if (!socket || !username || !roomId || isUserAlreadyInRoom || hasJoinedRoomRef.current) {
+            return;
         }
 
-        socket.on('user-joined', (data) => {
+        // Join room only once
+        socket.emit("user-joined-room", { username, roomId });
+        hasJoinedRoomRef.current = true;
+
+        // Set up socket event listeners
+        const handleUserJoined = (data) => {
             setUserData(data.clients || []);
-            if (data.username !== username) {
+            if (data.username !== currentUsernameRef.current) {
                 toast.success(`${data.username} joined the room`, {
                     style: {
                         background: '#10B981',
@@ -149,11 +176,11 @@ const EditorPage = () => {
                     },
                 });
             }
-        });
+        };
 
-        socket.on('user-left', (data) => {
+        const handleUserLeft = (data) => {
             setUserData(data.clients || []);
-            if (data.username !== username) {
+            if (data.username !== currentUsernameRef.current) {
                 toast.success(`${data.username} left the room`, {
                     style: {
                         background: '#F59E0B',
@@ -161,22 +188,23 @@ const EditorPage = () => {
                     },
                 });
             }
-        });
+        };
 
-        socket.on("sending-updated-content", (data) => {
+        const handleUpdatedContent = (data) => {
             setEditorContent(data.content);
-        });
+        };
 
-        socket.on('new-message', (data) => {
+        const handleNewMessage = (data) => {
             setMessages((prevMessages) => [...prevMessages, data]);
             
             // Show notification popup only if message is from another user and chat is not open
-            if (data.username !== username && (!chatsection || (isMobile && !sidebarOpen))) {
+            if (data.username !== currentUsernameRef.current && 
+                (!currentChatsectionRef.current || (currentIsMobileRef.current && !currentSidebarOpenRef.current))) {
                 setMessageNotification(data);
             }
-        });
+        };
 
-        socket.on('error', (errorMessage) => {
+        const handleError = (errorMessage) => {
             if (errorMessage.includes('already in room') || errorMessage.includes('duplicate')) {
                 setIsUserAlreadyInRoom(true);
                 toast.error('You are already in this room! Redirecting to home page.', {
@@ -197,28 +225,51 @@ const EditorPage = () => {
                     },
                 });
             }
-        });
+        };
 
-        const handleBeforeUnload = (event) => {
-            sessionStorage.removeItem(`room_${roomId}_${username}`);
-            socket.emit('leaveRoom', { username, roomId });
+        // Add event listeners
+        socket.on('user-joined', handleUserJoined);
+        socket.on('user-left', handleUserLeft);
+        socket.on("sending-updated-content", handleUpdatedContent);
+        socket.on('new-message', handleNewMessage);
+        socket.on('error', handleError);
+
+        // Cleanup function
+        return () => {
+            socket.off('user-joined', handleUserJoined);
+            socket.off('user-left', handleUserLeft);
+            socket.off("sending-updated-content", handleUpdatedContent);
+            socket.off('new-message', handleNewMessage);
+            socket.off('error', handleError);
+        };
+    }, [socket, username, roomId, isUserAlreadyInRoom, navigate]);
+
+    // Handle page unload/refresh
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (hasJoinedRoomRef.current) {
+                sessionStorage.removeItem(`room_${roomId}_${username}`);
+                if (socket) {
+                    socket.emit('leaveRoom', { username, roomId });
+                }
+            }
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         window.addEventListener('unload', handleBeforeUnload);
 
         return () => {
-            socket.off('user-joined');
-            socket.off('user-left');
-            socket.off("sending-updated-content");
-            socket.off('new-message');
-            socket.off('error');
             window.removeEventListener('beforeunload', handleBeforeUnload);
             window.removeEventListener('unload', handleBeforeUnload);
-            sessionStorage.removeItem(`room_${roomId}_${username}`);
-            socket.emit('leaveRoom', { username, roomId });
+            // Clean up when component unmounts
+            if (hasJoinedRoomRef.current) {
+                sessionStorage.removeItem(`room_${roomId}_${username}`);
+                if (socket) {
+                    socket.emit('leaveRoom', { username, roomId });
+                }
+            }
         };
-    }, [socket, username, roomId, navigate, isUserAlreadyInRoom, chatsection, isMobile, sidebarOpen]);
+    }, [socket, username, roomId]);
 
     // Don't render if user is already in room
     if (isUserAlreadyInRoom) {
