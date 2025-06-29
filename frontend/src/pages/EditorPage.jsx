@@ -2,10 +2,13 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import EditorAside from '../components/EditorAside';
 import CodeEditor from '../components/RealEditor';
+import LanguageSelector from '../components/LanguageSelector';
 import { useSocket } from '../context/SocketContext';
 import toast from 'react-hot-toast';
 import Chat from '../components/Chat';
 import MessageNotification from '../components/MessageNotification';
+import { getDefaultCode } from '../utils/codeTemplates';
+import { executeCode } from '../utils/codeExecutor';
 import team from '../assets/team.png';
 import groupChat from '../assets/groupChat.png';
 
@@ -16,6 +19,7 @@ const EditorPage = () => {
     const { socket } = useSocket();
     const [editorContent, setEditorContent] = useState("console.log('hello world')");
     const [executionResult, setExecutionResult] = useState('');
+    const [isExecuting, setIsExecuting] = useState(false);
     const navigate = useNavigate();
     const [messages, setMessages] = useState([]);
     const [output, setOutput] = useState(false);
@@ -26,6 +30,7 @@ const EditorPage = () => {
     const [userData, setUserData] = useState([]);
     const [isUserAlreadyInRoom, setIsUserAlreadyInRoom] = useState(false);
     const [messageNotification, setMessageNotification] = useState(null);
+    const [selectedLanguage, setSelectedLanguage] = useState('javascript');
     
     // Use refs to track current state values for socket callbacks
     const currentUsernameRef = useRef(username);
@@ -121,27 +126,64 @@ const EditorPage = () => {
     const handleEditorChange = useCallback((newValue) => {
         setEditorContent(newValue);
         if (socket && roomId) {
-            socket.emit('editor-update', { content: newValue, roomId });
+            socket.emit('editor-update', { content: newValue, roomId, language: selectedLanguage });
         }
+    }, [socket, roomId, selectedLanguage]);
+
+    const handleLanguageChange = useCallback((newLanguage) => {
+        setSelectedLanguage(newLanguage);
+        const defaultCode = getDefaultCode(newLanguage);
+        setEditorContent(defaultCode);
+        
+        // Broadcast language change to other users
+        if (socket && roomId) {
+            socket.emit('language-change', { roomId, language: newLanguage, content: defaultCode });
+        }
+        
+        toast.success(`Switched to ${newLanguage}`, {
+            style: {
+                background: '#10B981',
+                color: '#fff',
+            },
+        });
     }, [socket, roomId]);
 
-    const executeCode = useCallback(() => {
+    const executeCodeHandler = useCallback(async () => {
+        setIsExecuting(true);
+        setOutput(true);
+        
         try {
-            const log = [];
-            const originalConsoleLog = console.log;
-            console.log = (...args) => {
-                log.push(args.join(' '));
-                originalConsoleLog.apply(console, args);
-            };
-            eval(editorContent);
-            console.log = originalConsoleLog;
-            setOutput(true);
-            setExecutionResult(log.join('\n') || 'Code executed successfully (no output)');
+            const result = await executeCode(editorContent, selectedLanguage);
+            
+            if (result.success) {
+                setExecutionResult(result.output);
+                toast.success('Code executed successfully!', {
+                    style: {
+                        background: '#10B981',
+                        color: '#fff',
+                    },
+                });
+            } else {
+                setExecutionResult(result.error || 'Execution failed');
+                toast.error('Code execution failed!', {
+                    style: {
+                        background: '#EF4444',
+                        color: '#fff',
+                    },
+                });
+            }
         } catch (error) {
-            setExecutionResult(`Error: ${error.message}`);
-            setOutput(true);
+            setExecutionResult(`Execution Error: ${error.message}`);
+            toast.error('Code execution failed!', {
+                style: {
+                    background: '#EF4444',
+                    color: '#fff',
+                },
+            });
+        } finally {
+            setIsExecuting(false);
         }
-    }, [editorContent]);
+    }, [editorContent, selectedLanguage]);
 
     const toggleSidebar = useCallback((type) => {
         if (isMobile) {
@@ -192,6 +234,20 @@ const EditorPage = () => {
 
         const handleUpdatedContent = (data) => {
             setEditorContent(data.content);
+            if (data.language && data.language !== selectedLanguage) {
+                setSelectedLanguage(data.language);
+            }
+        };
+
+        const handleLanguageChange = (data) => {
+            setSelectedLanguage(data.language);
+            setEditorContent(data.content);
+            toast.success(`Language changed to ${data.language}`, {
+                style: {
+                    background: '#3B82F6',
+                    color: '#fff',
+                },
+            });
         };
 
         const handleNewMessage = (data) => {
@@ -231,6 +287,7 @@ const EditorPage = () => {
         socket.on('user-joined', handleUserJoined);
         socket.on('user-left', handleUserLeft);
         socket.on("sending-updated-content", handleUpdatedContent);
+        socket.on('language-change', handleLanguageChange);
         socket.on('new-message', handleNewMessage);
         socket.on('error', handleError);
 
@@ -239,10 +296,11 @@ const EditorPage = () => {
             socket.off('user-joined', handleUserJoined);
             socket.off('user-left', handleUserLeft);
             socket.off("sending-updated-content", handleUpdatedContent);
+            socket.off('language-change', handleLanguageChange);
             socket.off('new-message', handleNewMessage);
             socket.off('error', handleError);
         };
-    }, [socket, username, roomId, isUserAlreadyInRoom, navigate]);
+    }, [socket, username, roomId, isUserAlreadyInRoom, navigate, selectedLanguage]);
 
     // Handle page unload/refresh
     useEffect(() => {
@@ -306,6 +364,10 @@ const EditorPage = () => {
                             </div>
                         </div>
                         <div className='flex items-center space-x-2'>
+                            <LanguageSelector 
+                                selectedLanguage={selectedLanguage} 
+                                onLanguageChange={handleLanguageChange} 
+                            />
                             <button
                                 onClick={() => toggleSidebar('members')}
                                 className={`p-2 rounded-lg transition-colors ${editoraside && sidebarOpen ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
@@ -376,6 +438,25 @@ const EditorPage = () => {
 
             {/* Main Editor Area */}
             <div className={`flex-1 flex flex-col ${isMobile ? 'pt-16' : ''}`}>
+                {/* Editor Header */}
+                {!isMobile && (
+                    <div className='p-4 border-b border-gray-700 bg-gray-900/50 backdrop-blur-sm'>
+                        <div className='flex items-center justify-between'>
+                            <div className='flex items-center space-x-4'>
+                                <h3 className='text-lg font-semibold text-white'>Code Editor</h3>
+                                <LanguageSelector 
+                                    selectedLanguage={selectedLanguage} 
+                                    onLanguageChange={handleLanguageChange} 
+                                />
+                            </div>
+                            <div className='flex items-center space-x-2 text-sm text-gray-400'>
+                                <div className='w-2 h-2 bg-green-500 rounded-full animate-pulse'></div>
+                                <span>Live Sync Active</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Editor */}
                 <div className='flex-1 p-4 relative'>
                     <CodeEditor
@@ -383,16 +464,22 @@ const EditorPage = () => {
                         editorContent={editorContent}
                         roomId={roomId}
                         username={username}
+                        language={selectedLanguage}
                     />
                     
                     {/* Run Button */}
                     <button
-                        onClick={executeCode}
-                        className='absolute top-6 right-6 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white flex justify-center items-center cursor-pointer transition-all duration-300 transform hover:scale-110 active:scale-95 shadow-lg shadow-green-500/25'
+                        onClick={executeCodeHandler}
+                        disabled={isExecuting}
+                        className='absolute top-6 right-6 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-600 disabled:to-gray-700 text-white flex justify-center items-center cursor-pointer transition-all duration-300 transform hover:scale-110 active:scale-95 shadow-lg shadow-green-500/25 disabled:cursor-not-allowed disabled:transform-none'
                     >
-                        <svg className='w-6 h-6 sm:w-7 sm:h-7' fill='currentColor' viewBox='0 0 20 20'>
-                            <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z' clipRule='evenodd' />
-                        </svg>
+                        {isExecuting ? (
+                            <div className='w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin'></div>
+                        ) : (
+                            <svg className='w-6 h-6 sm:w-7 sm:h-7' fill='currentColor' viewBox='0 0 20 20'>
+                                <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z' clipRule='evenodd' />
+                            </svg>
+                        )}
                     </button>
                 </div>
 
@@ -407,6 +494,7 @@ const EditorPage = () => {
                                     <path fillRule='evenodd' d='M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1z' clipRule='evenodd' />
                                 </svg>
                                 <span>Output</span>
+                                <span className='text-sm text-gray-400'>({selectedLanguage})</span>
                             </h3>
                             {output && (
                                 <button

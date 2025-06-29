@@ -16,6 +16,7 @@ const userSocketMap = new Map();
 const roomData = new Map();
 const editorContentMap = new Map();
 const userRoomMap = new Map(); // Track which room each user is in
+const roomLanguageMap = new Map(); // Track language for each room
 
 io.on('connection', (socket) => {
   console.log('A user connected: ', socket.id);
@@ -45,6 +46,7 @@ io.on('connection', (socket) => {
         // Reset editor content if all users have left the previous room
         if (roomData.get(existingRoom).length === 0) {
           editorContentMap.set(existingRoom, "console.log('hello world')");
+          roomLanguageMap.set(existingRoom, 'javascript');
         }
         
         const remainingClients = roomData.get(existingRoom);
@@ -63,8 +65,9 @@ io.on('connection', (socket) => {
 
     if (!roomData.has(data.roomId)) {
       roomData.set(data.roomId, []);
-      // Set default content for new room
+      // Set default content and language for new room
       editorContentMap.set(data.roomId, "console.log('hello world')");
+      roomLanguageMap.set(data.roomId, 'javascript');
     }
 
     // Remove any existing user with the same username to avoid duplicates
@@ -72,9 +75,13 @@ io.on('connection', (socket) => {
     users.push({ username: data.username, socketId: socket.id });
     roomData.set(data.roomId, users);
 
-    // Send the current editor content to the newly joined user
+    // Send the current editor content and language to the newly joined user
     const currentContent = editorContentMap.get(data.roomId) || '';
-    socket.emit('sending-updated-content', { content: currentContent });
+    const currentLanguage = roomLanguageMap.get(data.roomId) || 'javascript';
+    socket.emit('sending-updated-content', { 
+      content: currentContent, 
+      language: currentLanguage 
+    });
 
     const clients = roomData.get(data.roomId);
     io.to(data.roomId).emit('user-joined', { username: data.username, socketId: socket.id, clients });
@@ -110,6 +117,19 @@ io.on('connection', (socket) => {
     io.to(roomId).emit('new-message', { message, username, roomId, time: Date.now(), socketId: socket.id });
   });
 
+  // Handle language change
+  socket.on('language-change', (data) => {
+    const { roomId, language, content } = data;
+    if (!roomId || !language) return;
+
+    // Update room language and content
+    roomLanguageMap.set(roomId, language);
+    editorContentMap.set(roomId, content);
+
+    // Broadcast language change to other users in the room
+    socket.broadcast.to(roomId).emit('language-change', { language, content });
+  });
+
   // Handle user leaving a room
   socket.on('leaveRoom', (data) => {
     if (!data.roomId || !data.username) {
@@ -126,9 +146,10 @@ io.on('connection', (socket) => {
       const users = roomData.get(data.roomId);
       roomData.set(data.roomId, users.filter((user) => user.username !== data.username));
 
-      // Reset editor content if all users have left the room
+      // Reset editor content and language if all users have left the room
       if (roomData.get(data.roomId).length === 0) {
         editorContentMap.set(data.roomId, "console.log('hello world')");
+        roomLanguageMap.set(data.roomId, 'javascript');
       }
     }
 
@@ -143,9 +164,16 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Update the editor content map
+    // Update the editor content and language map
     editorContentMap.set(data.roomId, data.content);
-    socket.broadcast.to(data.roomId).emit("sending-updated-content", { content: data.content });
+    if (data.language) {
+      roomLanguageMap.set(data.roomId, data.language);
+    }
+    
+    socket.broadcast.to(data.roomId).emit("sending-updated-content", { 
+      content: data.content,
+      language: data.language || roomLanguageMap.get(data.roomId)
+    });
   });
 
   // Handle user disconnection
@@ -165,9 +193,10 @@ io.on('connection', (socket) => {
         const users = roomData.get(roomId);
         roomData.set(roomId, users.filter((user) => user.username !== username));
         
-        // Reset editor content if all users have left the room
+        // Reset editor content and language if all users have left the room
         if (roomData.get(roomId).length === 0) {
           editorContentMap.set(roomId, "console.log('hello world')");
+          roomLanguageMap.set(roomId, 'javascript');
         }
         
         const remainingClients = roomData.get(roomId);
