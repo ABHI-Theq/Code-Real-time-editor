@@ -2,13 +2,9 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import EditorAside from '../components/EditorAside';
 import CodeEditor from '../components/RealEditor';
-import LanguageSelector from '../components/LanguageSelector';
 import { useSocket } from '../context/SocketContext';
 import toast from 'react-hot-toast';
 import Chat from '../components/Chat';
-import MessageNotification from '../components/MessageNotification';
-import { getDefaultCode } from '../utils/codeTemplates';
-import { executeCode } from '../utils/codeExecutor';
 import team from '../assets/team.png';
 import groupChat from '../assets/groupChat.png';
 
@@ -19,7 +15,6 @@ const EditorPage = () => {
     const { socket } = useSocket();
     const [editorContent, setEditorContent] = useState("console.log('hello world')");
     const [executionResult, setExecutionResult] = useState('');
-    const [isExecuting, setIsExecuting] = useState(false);
     const navigate = useNavigate();
     const [messages, setMessages] = useState([]);
     const [output, setOutput] = useState(false);
@@ -30,7 +25,6 @@ const EditorPage = () => {
     const [userData, setUserData] = useState([]);
     const [isUserAlreadyInRoom, setIsUserAlreadyInRoom] = useState(false);
     const [messageNotification, setMessageNotification] = useState(null);
-    const [selectedLanguage, setSelectedLanguage] = useState('javascript');
     
     // Use refs to track current state values for socket callbacks
     const currentUsernameRef = useRef(username);
@@ -126,64 +120,27 @@ const EditorPage = () => {
     const handleEditorChange = useCallback((newValue) => {
         setEditorContent(newValue);
         if (socket && roomId) {
-            socket.emit('editor-update', { content: newValue, roomId, language: selectedLanguage });
+            socket.emit('editor-update', { content: newValue, roomId });
         }
-    }, [socket, roomId, selectedLanguage]);
-
-    const handleLanguageChange = useCallback((newLanguage) => {
-        setSelectedLanguage(newLanguage);
-        const defaultCode = getDefaultCode(newLanguage);
-        setEditorContent(defaultCode);
-        
-        // Broadcast language change to other users
-        if (socket && roomId) {
-            socket.emit('language-change', { roomId, language: newLanguage, content: defaultCode });
-        }
-        
-        toast.success(`Switched to ${newLanguage}`, {
-            style: {
-                background: '#10B981',
-                color: '#fff',
-            },
-        });
     }, [socket, roomId]);
 
-    const executeCodeHandler = useCallback(async () => {
-        setIsExecuting(true);
-        setOutput(true);
-        
+    const executeCode = useCallback(() => {
         try {
-            const result = await executeCode(editorContent, selectedLanguage);
-            
-            if (result.success) {
-                setExecutionResult(result.output);
-                toast.success('Code executed successfully!', {
-                    style: {
-                        background: '#10B981',
-                        color: '#fff',
-                    },
-                });
-            } else {
-                setExecutionResult(result.error || 'Execution failed');
-                toast.error('Code execution failed!', {
-                    style: {
-                        background: '#EF4444',
-                        color: '#fff',
-                    },
-                });
-            }
+            const log = [];
+            const originalConsoleLog = console.log;
+            console.log = (...args) => {
+                log.push(args.join(' '));
+                originalConsoleLog.apply(console, args);
+            };
+            eval(editorContent);
+            console.log = originalConsoleLog;
+            setOutput(true);
+            setExecutionResult(log.join('\n') || 'Code executed successfully (no output)');
         } catch (error) {
-            setExecutionResult(`Execution Error: ${error.message}`);
-            toast.error('Code execution failed!', {
-                style: {
-                    background: '#EF4444',
-                    color: '#fff',
-                },
-            });
-        } finally {
-            setIsExecuting(false);
+            setExecutionResult(`Error: ${error.message}`);
+            setOutput(true);
         }
-    }, [editorContent, selectedLanguage]);
+    }, [editorContent]);
 
     const toggleSidebar = useCallback((type) => {
         if (isMobile) {
@@ -234,20 +191,6 @@ const EditorPage = () => {
 
         const handleUpdatedContent = (data) => {
             setEditorContent(data.content);
-            if (data.language && data.language !== selectedLanguage) {
-                setSelectedLanguage(data.language);
-            }
-        };
-
-        const handleLanguageChange = (data) => {
-            setSelectedLanguage(data.language);
-            setEditorContent(data.content);
-            toast.success(`Language changed to ${data.language}`, {
-                style: {
-                    background: '#3B82F6',
-                    color: '#fff',
-                },
-            });
         };
 
         const handleNewMessage = (data) => {
@@ -287,7 +230,6 @@ const EditorPage = () => {
         socket.on('user-joined', handleUserJoined);
         socket.on('user-left', handleUserLeft);
         socket.on("sending-updated-content", handleUpdatedContent);
-        socket.on('language-change', handleLanguageChange);
         socket.on('new-message', handleNewMessage);
         socket.on('error', handleError);
 
@@ -296,11 +238,10 @@ const EditorPage = () => {
             socket.off('user-joined', handleUserJoined);
             socket.off('user-left', handleUserLeft);
             socket.off("sending-updated-content", handleUpdatedContent);
-            socket.off('language-change', handleLanguageChange);
             socket.off('new-message', handleNewMessage);
             socket.off('error', handleError);
         };
-    }, [socket, username, roomId, isUserAlreadyInRoom, navigate, selectedLanguage]);
+    }, [socket, username, roomId, isUserAlreadyInRoom, navigate]);
 
     // Handle page unload/refresh
     useEffect(() => {
@@ -328,6 +269,69 @@ const EditorPage = () => {
             }
         };
     }, [socket, username, roomId]);
+
+    // Message notification component
+    const MessageNotification = ({ message, onClose }) => {
+        const [isVisible, setIsVisible] = useState(false);
+
+        useEffect(() => {
+            if (message) {
+                setIsVisible(true);
+                // Auto-hide after 4 seconds
+                const timer = setTimeout(() => {
+                    setIsVisible(false);
+                    setTimeout(onClose, 300); // Wait for fade out animation
+                }, 4000);
+
+                return () => clearTimeout(timer);
+            }
+        }, [message, onClose]);
+
+        if (!message) return null;
+
+        return (
+            <div className={`fixed bottom-4 left-4 z-50 transition-all duration-300 transform ${
+                isVisible ? 'translate-y-0 opacity-100' : 'translate-y-full opacity-0'
+            }`}>
+                <div className="bg-gray-800/95 backdrop-blur-sm border border-gray-600 rounded-xl p-4 shadow-2xl max-w-sm">
+                    <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-1">
+                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                                <span className="text-blue-400 text-sm font-medium">New Message</span>
+                            </div>
+                            <div className="text-gray-300 text-sm font-medium mb-1">
+                                {message.username}
+                            </div>
+                            <div className="text-white text-sm break-words">
+                                {message.message.length > 60 
+                                    ? `${message.message.substring(0, 60)}...` 
+                                    : message.message
+                                }
+                            </div>
+                            <div className="text-gray-400 text-xs mt-1">
+                                {new Date(message.time).toLocaleTimeString([], { 
+                                    hour: '2-digit', 
+                                    minute: '2-digit' 
+                                })}
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => {
+                                setIsVisible(false);
+                                setTimeout(onClose, 300);
+                            }}
+                            className="ml-2 p-1 rounded-lg hover:bg-gray-700 transition-colors"
+                        >
+                            <svg className="w-4 h-4 text-gray-400 hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     // Don't render if user is already in room
     if (isUserAlreadyInRoom) {
@@ -364,10 +368,6 @@ const EditorPage = () => {
                             </div>
                         </div>
                         <div className='flex items-center space-x-2'>
-                            <LanguageSelector 
-                                selectedLanguage={selectedLanguage} 
-                                onLanguageChange={handleLanguageChange} 
-                            />
                             <button
                                 onClick={() => toggleSidebar('members')}
                                 className={`p-2 rounded-lg transition-colors ${editoraside && sidebarOpen ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'}`}
@@ -438,25 +438,6 @@ const EditorPage = () => {
 
             {/* Main Editor Area */}
             <div className={`flex-1 flex flex-col ${isMobile ? 'pt-16' : ''}`}>
-                {/* Editor Header */}
-                {!isMobile && (
-                    <div className='p-4 border-b border-gray-700 bg-gray-900/50 backdrop-blur-sm'>
-                        <div className='flex items-center justify-between'>
-                            <div className='flex items-center space-x-4'>
-                                <h3 className='text-lg font-semibold text-white'>Code Editor</h3>
-                                <LanguageSelector 
-                                    selectedLanguage={selectedLanguage} 
-                                    onLanguageChange={handleLanguageChange} 
-                                />
-                            </div>
-                            <div className='flex items-center space-x-2 text-sm text-gray-400'>
-                                <div className='w-2 h-2 bg-green-500 rounded-full animate-pulse'></div>
-                                <span>Live Sync Active</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
                 {/* Editor */}
                 <div className='flex-1 p-4 relative'>
                     <CodeEditor
@@ -464,22 +445,16 @@ const EditorPage = () => {
                         editorContent={editorContent}
                         roomId={roomId}
                         username={username}
-                        language={selectedLanguage}
                     />
                     
                     {/* Run Button */}
                     <button
-                        onClick={executeCodeHandler}
-                        disabled={isExecuting}
-                        className='absolute top-6 right-6 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-600 disabled:to-gray-700 text-white flex justify-center items-center cursor-pointer transition-all duration-300 transform hover:scale-110 active:scale-95 shadow-lg shadow-green-500/25 disabled:cursor-not-allowed disabled:transform-none'
+                        onClick={executeCode}
+                        className='absolute top-6 right-6 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white flex justify-center items-center cursor-pointer transition-all duration-300 transform hover:scale-110 active:scale-95 shadow-lg shadow-green-500/25'
                     >
-                        {isExecuting ? (
-                            <div className='w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin'></div>
-                        ) : (
-                            <svg className='w-6 h-6 sm:w-7 sm:h-7' fill='currentColor' viewBox='0 0 20 20'>
-                                <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z' clipRule='evenodd' />
-                            </svg>
-                        )}
+                        <svg className='w-6 h-6 sm:w-7 sm:h-7' fill='currentColor' viewBox='0 0 20 20'>
+                            <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z' clipRule='evenodd' />
+                        </svg>
                     </button>
                 </div>
 
@@ -494,7 +469,6 @@ const EditorPage = () => {
                                     <path fillRule='evenodd' d='M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zm0 4a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h6a1 1 0 110 2H4a1 1 0 01-1-1z' clipRule='evenodd' />
                                 </svg>
                                 <span>Output</span>
-                                <span className='text-sm text-gray-400'>({selectedLanguage})</span>
                             </h3>
                             {output && (
                                 <button
