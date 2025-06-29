@@ -91,13 +91,13 @@ io.on('connection', (socket) => {
     roomCursors.set(username, position);
     userCursors.set(roomId, roomCursors);
 
-    // Broadcast cursor position to other users in the room
+    // Broadcast cursor position to other users in the room (not to sender)
     socket.broadcast.to(roomId).emit('user-cursor-position', {
       username,
       position
     });
 
-    // Broadcast typing indicator
+    // Broadcast typing indicator to other users in the room (not to sender)
     socket.broadcast.to(roomId).emit('user-typing', { username });
   });
 
@@ -106,6 +106,7 @@ io.on('connection', (socket) => {
     const { roomId, username } = data;
     if (!roomId || !username) return;
 
+    // Broadcast typing stopped to other users in the room (not to sender)
     socket.broadcast.to(roomId).emit('user-stopped-typing', { username });
   });
 

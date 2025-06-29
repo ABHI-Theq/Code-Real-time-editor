@@ -42,11 +42,12 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
             }
         });
 
-        // Clear typing indicator after 2 seconds of inactivity
+        // Clear existing typing timeout for this user
         if (typingTimeoutRef.current[username]) {
             clearTimeout(typingTimeoutRef.current[username]);
         }
         
+        // Set new timeout to emit typing stopped
         typingTimeoutRef.current[username] = setTimeout(() => {
             socket.emit('typing-stopped', { roomId, username });
         }, 2000);
@@ -65,7 +66,7 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
         });
         markersRef.current = {};
 
-        // Add new markers for each user
+        // Add new markers for each user (excluding current user)
         Object.entries(userCursors).forEach(([user, position]) => {
             if (user === username) return; // Don't show own cursor
 
@@ -177,6 +178,7 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
 
         // Listen for other users' cursor positions
         socket.on('user-cursor-position', (data) => {
+            // Only update if it's not the current user
             if (data.username !== username) {
                 setUserCursors(prev => ({
                     ...prev,
@@ -187,6 +189,7 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
 
         // Listen for typing indicators - only for other users
         socket.on('user-typing', (data) => {
+            // Only show typing indicator for other users, not current user
             if (data.username !== username) {
                 setIsTyping(prev => ({
                     ...prev,
@@ -196,6 +199,7 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
         });
 
         socket.on('user-stopped-typing', (data) => {
+            // Only handle typing stopped for other users
             if (data.username !== username) {
                 setIsTyping(prev => {
                     const newState = { ...prev };
@@ -223,6 +227,7 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
             socket.off('user-cursor-position');
             socket.off('user-typing');
             socket.off('user-stopped-typing');
+            socket.off('user-left');
         };
     }, [socket, username]);
 
@@ -233,7 +238,7 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
 
     return (
         <div className="h-full w-full rounded-lg overflow-hidden border border-gray-700 shadow-2xl relative">
-            {/* Typing indicators - only show other users */}
+            {/* Typing indicators - only show other users typing */}
             {Object.keys(isTyping).length > 0 && (
                 <div className="absolute top-2 right-2 z-50 flex flex-wrap gap-2">
                     {Object.keys(isTyping).map(user => (
