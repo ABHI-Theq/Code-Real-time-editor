@@ -15,9 +15,7 @@ const io = new Server(server, {
 const userSocketMap = new Map();
 const roomData = new Map();
 const editorContentMap = new Map();
-// const usersMovingCursor = {};
-
-
+const userRoomMap = new Map(); // Track which room each user is in
 
 io.on('connection', (socket) => {
   console.log('A user connected: ', socket.id);
@@ -29,7 +27,38 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // Check if user is already in this room
+    const existingRoom = userRoomMap.get(data.username);
+    if (existingRoom === data.roomId) {
+      socket.emit('error', 'You are already in this room');
+      return;
+    }
+
+    // Check if user is already in a different room
+    if (existingRoom && existingRoom !== data.roomId) {
+      // Leave the previous room first
+      socket.leave(existingRoom);
+      if (roomData.has(existingRoom)) {
+        const users = roomData.get(existingRoom);
+        roomData.set(existingRoom, users.filter((user) => user.username !== data.username));
+        
+        // Reset editor content if all users have left the previous room
+        if (roomData.get(existingRoom).length === 0) {
+          editorContentMap.set(existingRoom, "console.log('hello world')");
+        }
+        
+        const remainingClients = roomData.get(existingRoom);
+        io.to(existingRoom).emit('user-left', { 
+          username: data.username, 
+          socketId: socket.id, 
+          clients: remainingClients 
+        });
+      }
+    }
+
+    // Update user mappings
     userSocketMap.set(data.username, socket.id);
+    userRoomMap.set(data.username, data.roomId);
     socket.join(data.roomId);
 
     if (!roomData.has(data.roomId)) {
@@ -71,6 +100,9 @@ io.on('connection', (socket) => {
     }
 
     socket.leave(data.roomId);
+    
+    // Remove from user mappings
+    userRoomMap.delete(data.username);
 
     if (roomData.has(data.roomId)) {
       const users = roomData.get(data.roomId);
@@ -98,25 +130,6 @@ io.on('connection', (socket) => {
     socket.broadcast.to(data.roomId).emit("sending-updated-content", { content: data.content });
   });
 
-  // Handle cursor movement changes
-  // socket.on('cursor-move', (data) => {
-  //   if (!data.roomId || !data.username) {
-  //     socket.emit('error', 'Invalid room or username');
-  //     return;
-  //   }
-  //   usersMovingCursor[data.username] = data.position;
-  //   socket.broadcast.to(data.roomId).emit('update-cursor-users', usersMovingCursor);
-  // });
-
-  // socket.on('cursor-stop', (data) => {
-  //   if (!data.roomId || !data.username) {
-  //     socket.emit('error', 'Invalid room or username');
-  //     return;
-  //   }
-  //   delete usersMovingCursor[data.username];
-  //   socket.broadcast.to(data.roomId).emit('update-cursor-users', usersMovingCursor);
-  // });
-
   // Handle user disconnection
   socket.on('disconnect', () => {
     const username = [...userSocketMap.entries()].find(
@@ -125,19 +138,26 @@ io.on('connection', (socket) => {
 
     if (username) {
       userSocketMap.delete(username);
-      // delete usersMovingCursor[username];
+      const roomId = userRoomMap.get(username);
+      userRoomMap.delete(username);
+      
       console.log(`User ${username} disconnected`);
 
-      for (const roomId of socket.rooms) {
-        if (roomId !== socket.id) {
-          io.to(roomId).emit('user-left', `${username} left the room`);
-          io.to(roomId).emit('update-cursor-users', usersMovingCursor);
-
-          // Reset editor content if all users have left the room
-          if (roomData.get(roomId).length === 0) {
-            editorContentMap.set(roomId, "console.log('hello world')");
-          }
+      if (roomId && roomData.has(roomId)) {
+        const users = roomData.get(roomId);
+        roomData.set(roomId, users.filter((user) => user.username !== username));
+        
+        // Reset editor content if all users have left the room
+        if (roomData.get(roomId).length === 0) {
+          editorContentMap.set(roomId, "console.log('hello world')");
         }
+        
+        const remainingClients = roomData.get(roomId);
+        io.to(roomId).emit('user-left', { 
+          username: username, 
+          socketId: socket.id, 
+          clients: remainingClients 
+        });
       }
     } else {
       console.log('A user disconnected');

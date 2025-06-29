@@ -23,6 +23,7 @@ const EditorPage = () => {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [userData, setUserData] = useState([]);
+    const [isUserAlreadyInRoom, setIsUserAlreadyInRoom] = useState(false);
 
     // Handle responsive behavior
     useEffect(() => {
@@ -37,6 +38,38 @@ const EditorPage = () => {
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
+
+    // Check if user is already in room
+    useEffect(() => {
+        if (!username || !roomId) {
+            navigate('/');
+            return;
+        }
+
+        // Check if user is trying to join the same room again
+        const currentRoomData = sessionStorage.getItem(`room_${roomId}_${username}`);
+        if (currentRoomData) {
+            toast.error('You are already in this room! Redirecting to home page.', {
+                style: {
+                    background: '#EF4444',
+                    color: '#fff',
+                },
+                duration: 3000,
+            });
+            setTimeout(() => {
+                navigate('/');
+            }, 2000);
+            return;
+        }
+
+        // Store user session data
+        sessionStorage.setItem(`room_${roomId}_${username}`, JSON.stringify({
+            username,
+            roomId,
+            joinedAt: Date.now()
+        }));
+
+    }, [username, roomId, navigate]);
 
     const copyToClipboard = () => {
         navigator.clipboard.writeText(roomId).then(() => {
@@ -57,6 +90,8 @@ const EditorPage = () => {
     };
 
     const leaveRoom = () => {
+        // Clear session storage when leaving
+        sessionStorage.removeItem(`room_${roomId}_${username}`);
         socket.emit('leaveRoom', { username, roomId });
         navigate('/');
     };
@@ -93,28 +128,32 @@ const EditorPage = () => {
     };
 
     useEffect(() => {
-        if (username && roomId) {
+        if (username && roomId && !isUserAlreadyInRoom) {
             socket.emit("user-joined-room", { username, roomId });
         }
 
         socket.on('user-joined', (data) => {
             setUserData(data.clients || []);
-            toast.success(`${data.username} joined the room`, {
-                style: {
-                    background: '#10B981',
-                    color: '#fff',
-                },
-            });
+            if (data.username !== username) {
+                toast.success(`${data.username} joined the room`, {
+                    style: {
+                        background: '#10B981',
+                        color: '#fff',
+                    },
+                });
+            }
         });
 
         socket.on('user-left', (data) => {
             setUserData(data.clients || []);
-            toast.success(`${data.username} left the room`, {
-                style: {
-                    background: '#F59E0B',
-                    color: '#fff',
-                },
-            });
+            if (data.username !== username) {
+                toast.success(`${data.username} left the room`, {
+                    style: {
+                        background: '#F59E0B',
+                        color: '#fff',
+                    },
+                });
+            }
         });
 
         socket.on("sending-updated-content", (data) => {
@@ -125,7 +164,31 @@ const EditorPage = () => {
             setMessages((prevMessages) => [...prevMessages, data]);
         });
 
+        socket.on('error', (errorMessage) => {
+            if (errorMessage.includes('already in room') || errorMessage.includes('duplicate')) {
+                setIsUserAlreadyInRoom(true);
+                toast.error('You are already in this room! Redirecting to home page.', {
+                    style: {
+                        background: '#EF4444',
+                        color: '#fff',
+                    },
+                    duration: 3000,
+                });
+                setTimeout(() => {
+                    navigate('/');
+                }, 2000);
+            } else {
+                toast.error(errorMessage, {
+                    style: {
+                        background: '#EF4444',
+                        color: '#fff',
+                    },
+                });
+            }
+        });
+
         const handleBeforeUnload = (event) => {
+            sessionStorage.removeItem(`room_${roomId}_${username}`);
             socket.emit('leaveRoom', { username, roomId });
         };
 
@@ -137,11 +200,25 @@ const EditorPage = () => {
             socket.off('user-left');
             socket.off("sending-updated-content");
             socket.off('new-message');
+            socket.off('error');
             window.removeEventListener('beforeunload', handleBeforeUnload);
             window.removeEventListener('unload', handleBeforeUnload);
+            sessionStorage.removeItem(`room_${roomId}_${username}`);
             socket.emit('leaveRoom', { username, roomId });
         };
-    }, [socket, username, roomId]);
+    }, [socket, username, roomId, navigate, isUserAlreadyInRoom]);
+
+    // Don't render if user is already in room
+    if (isUserAlreadyInRoom) {
+        return (
+            <div className='bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 w-full h-screen text-white flex items-center justify-center'>
+                <div className='text-center'>
+                    <div className='w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4'></div>
+                    <p className='text-xl'>Redirecting to home page...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className='bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 w-full h-screen text-white flex relative overflow-hidden'>
