@@ -42,20 +42,12 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
             }
         });
 
-        // Set typing indicator
-        setIsTyping(prev => ({ ...prev, [username]: true }));
-        
         // Clear typing indicator after 2 seconds of inactivity
         if (typingTimeoutRef.current[username]) {
             clearTimeout(typingTimeoutRef.current[username]);
         }
         
         typingTimeoutRef.current[username] = setTimeout(() => {
-            setIsTyping(prev => {
-                const newState = { ...prev };
-                delete newState[username];
-                return newState;
-            });
             socket.emit('typing-stopped', { roomId, username });
         }, 2000);
     };
@@ -193,7 +185,7 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
             }
         });
 
-        // Listen for typing indicators
+        // Listen for typing indicators - only for other users
         socket.on('user-typing', (data) => {
             if (data.username !== username) {
                 setIsTyping(prev => ({
@@ -204,11 +196,13 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
         });
 
         socket.on('user-stopped-typing', (data) => {
-            setIsTyping(prev => {
-                const newState = { ...prev };
-                delete newState[data.username];
-                return newState;
-            });
+            if (data.username !== username) {
+                setIsTyping(prev => {
+                    const newState = { ...prev };
+                    delete newState[data.username];
+                    return newState;
+                });
+            }
         });
 
         // Clean up cursor when user leaves
@@ -239,23 +233,21 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
 
     return (
         <div className="h-full w-full rounded-lg overflow-hidden border border-gray-700 shadow-2xl relative">
-            {/* Typing indicators */}
+            {/* Typing indicators - only show other users */}
             {Object.keys(isTyping).length > 0 && (
                 <div className="absolute top-2 right-2 z-50 flex flex-wrap gap-2">
                     {Object.keys(isTyping).map(user => (
-                        user !== username && (
+                        <div
+                            key={user}
+                            className="flex items-center space-x-1 bg-gray-800/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs text-white border"
+                            style={{ borderColor: getUserColor(user) }}
+                        >
                             <div
-                                key={user}
-                                className="flex items-center space-x-1 bg-gray-800/90 backdrop-blur-sm px-2 py-1 rounded-full text-xs text-white border"
-                                style={{ borderColor: getUserColor(user) }}
-                            >
-                                <div
-                                    className="w-2 h-2 rounded-full animate-pulse"
-                                    style={{ backgroundColor: getUserColor(user) }}
-                                ></div>
-                                <span>{user} is typing...</span>
-                            </div>
-                        )
+                                className="w-2 h-2 rounded-full animate-pulse"
+                                style={{ backgroundColor: getUserColor(user) }}
+                            ></div>
+                            <span>{user} is typing...</span>
+                        </div>
                     ))}
                 </div>
             )}
