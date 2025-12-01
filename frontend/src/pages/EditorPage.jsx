@@ -19,6 +19,7 @@ const EditorPage = () => {
     const [editorContent, setEditorContent] = useState(getDefaultCode('javascript'));
     const [executionResult, setExecutionResult] = useState('');
     const [isExecuting, setIsExecuting] = useState(false);
+    const [userInput, setUserInput] = useState('');
     const navigate = useNavigate();
     const [messages, setMessages] = useState([]);
     const [output, setOutput] = useState(false);
@@ -134,7 +135,7 @@ const EditorPage = () => {
         setExecutionResult('Executing code...');
 
         try {
-            const result = await executeCode(editorContent, selectedLanguage);
+            const result = await executeCode(editorContent, selectedLanguage, userInput);
             
             if (result.success) {
                 const output = result.output || 'Code executed successfully (no output)';
@@ -168,7 +169,7 @@ const EditorPage = () => {
         } finally {
             setIsExecuting(false);
         }
-    }, [editorContent, selectedLanguage]);
+    }, [editorContent, selectedLanguage, userInput]);
 
     const handleLanguageChange = useCallback((newLanguage) => {
         setSelectedLanguage(newLanguage);
@@ -525,6 +526,20 @@ const EditorPage = () => {
                         username={username}
                         language={selectedLanguage}
                     />
+                </div>
+
+                {/* Input Panel */}
+                <div className='mx-4 mb-2 bg-gray-900 border border-gray-700 rounded-xl p-3'>
+                    <div className='flex items-center space-x-2'>
+                        <label className='text-sm text-gray-400 whitespace-nowrap'>Input (stdin):</label>
+                        <input
+                            type='text'
+                            value={userInput}
+                            onChange={(e) => setUserInput(e.target.value)}
+                            placeholder='Enter input for your program (e.g., "John" or "5 10")'
+                            className='flex-1 bg-gray-800 text-white px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-600'
+                        />
+                    </div>
                 </div>
 
                 {/* Output Panel */}

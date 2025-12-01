@@ -5,13 +5,14 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3301';
 /**
  * Execute code on the backend
  */
-export async function executeCode(code, language) {
+export async function executeCode(code, language, input = '') {
     try {
         const response = await axios.post(
             `${API_URL}/api/execute`,
             {
                 code,
                 language,
+                input,
             },
             {
                 headers: {

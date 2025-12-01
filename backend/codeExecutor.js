@@ -44,7 +44,7 @@ const PISTON_LANGUAGES = {
 /**
  * Execute code using Judge0 API
  */
-export async function executeWithJudge0(code, language) {
+export async function executeWithJudge0(code, language, input = '') {
     const languageId = LANGUAGE_IDS[language];
     
     if (!languageId) {
@@ -77,7 +77,7 @@ export async function executeWithJudge0(code, language) {
             {
                 source_code: code,
                 language_id: languageId,
-                stdin: '',
+                stdin: input || '',
                 cpu_time_limit: 5, // 5 seconds max
                 memory_limit: 128000, // 128 MB
             },
@@ -119,7 +119,7 @@ export async function executeWithJudge0(code, language) {
 /**
  * Execute code using Piston API (free alternative)
  */
-export async function executeWithPiston(code, language) {
+export async function executeWithPiston(code, language, input = '') {
     const pistonLang = PISTON_LANGUAGES[language];
     
     if (!pistonLang) {
@@ -156,7 +156,7 @@ export async function executeWithPiston(code, language) {
                         content: code,
                     },
                 ],
-                stdin: '',
+                stdin: input || '',
                 args: [],
                 compile_timeout: 10000,
                 run_timeout: 3000,
@@ -197,7 +197,7 @@ export async function executeWithPiston(code, language) {
 /**
  * Main execution function - tries Piston first (free), falls back to Judge0
  */
-export async function executeCode(code, language) {
+export async function executeCode(code, language, input = '') {
     // Input validation
     if (!code || typeof code !== 'string') {
         return {
@@ -220,10 +220,11 @@ export async function executeCode(code, language) {
     // Sanitize inputs
     const sanitizedCode = code.trim();
     const sanitizedLanguage = language.toLowerCase().trim();
+    const sanitizedInput = typeof input === 'string' ? input : '';
 
     // Try Piston API first (it's free and doesn't require API key)
     try {
-        const result = await executeWithPiston(sanitizedCode, sanitizedLanguage);
+        const result = await executeWithPiston(sanitizedCode, sanitizedLanguage, sanitizedInput);
         if (result.success || !process.env.JUDGE0_API_KEY) {
             return result;
         }
@@ -233,7 +234,7 @@ export async function executeCode(code, language) {
 
     // Fallback to Judge0 if Piston fails and API key is available
     if (process.env.JUDGE0_API_KEY && process.env.JUDGE0_API_KEY !== 'your_rapidapi_key_here') {
-        return await executeWithJudge0(sanitizedCode, sanitizedLanguage);
+        return await executeWithJudge0(sanitizedCode, sanitizedLanguage, sanitizedInput);
     }
 
     return {

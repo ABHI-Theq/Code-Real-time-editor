@@ -76,7 +76,7 @@ app.get('/api/languages', (req, res) => {
 // Execute code endpoint with rate limiting
 app.post('/api/execute', executionLimiter, async (req, res) => {
     try {
-        const { code, language } = req.body;
+        const { code, language, input } = req.body;
 
         // Validation
         if (!code || typeof code !== 'string') {
@@ -102,8 +102,8 @@ app.post('/api/execute', executionLimiter, async (req, res) => {
             });
         }
 
-        // Execute code
-        const result = await executeCode(code, language);
+        // Execute code with optional input
+        const result = await executeCode(code, language, input || '');
 
         res.status(200).json(result);
 
