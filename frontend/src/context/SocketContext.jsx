@@ -12,11 +12,13 @@ export const useSocket = () => {
 export const SocketContextProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const socketUrl = import.meta.env.VITE_API_SOCKET_URL
+
 
   useEffect(() => {
     if (!socket) {
       // Initialize socket connection if not already initialized
-      const socketInstance = io('http://localhost:3301');
+      const socketInstance = io(socketUrl);
 
       // When socket is successfully connected
       socketInstance.on('connect', () => {
