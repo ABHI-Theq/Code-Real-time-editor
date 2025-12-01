@@ -16,7 +16,7 @@ export const SocketContextProvider = ({ children }) => {
   useEffect(() => {
     if (!socket) {
       // Initialize socket connection if not already initialized
-      const socketInstance = io('https://code-real-time-editor.onrender.com');
+      const socketInstance = io('http://localhost:3301');
 
       // When socket is successfully connected
       socketInstance.on('connect', () => {

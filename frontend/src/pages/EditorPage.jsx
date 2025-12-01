@@ -5,6 +5,8 @@ import CodeEditor from '../components/RealEditor';
 import { useSocket } from '../context/SocketContext';
 import toast from 'react-hot-toast';
 import Chat from '../components/Chat';
+import LanguageSelector from '../components/LanguageSelector';
+import { executeCode, getDefaultCode } from '../services/codeExecutionService';
 import team from '../assets/team.png';
 import groupChat from '../assets/groupChat.png';
 
@@ -13,8 +15,10 @@ const EditorPage = () => {
     const username = searchParams?.get('username');
     const roomId = searchParams?.get('roomId');
     const { socket } = useSocket();
-    const [editorContent, setEditorContent] = useState("console.log('hello world')");
+    const [selectedLanguage, setSelectedLanguage] = useState('javascript');
+    const [editorContent, setEditorContent] = useState(getDefaultCode('javascript'));
     const [executionResult, setExecutionResult] = useState('');
+    const [isExecuting, setIsExecuting] = useState(false);
     const navigate = useNavigate();
     const [messages, setMessages] = useState([]);
     const [output, setOutput] = useState(false);
@@ -124,23 +128,65 @@ const EditorPage = () => {
         }
     }, [socket, roomId]);
 
-    const executeCode = useCallback(() => {
+    const handleExecuteCode = useCallback(async () => {
+        setIsExecuting(true);
+        setOutput(true);
+        setExecutionResult('Executing code...');
+
         try {
-            const log = [];
-            const originalConsoleLog = console.log;
-            console.log = (...args) => {
-                log.push(args.join(' '));
-                originalConsoleLog.apply(console, args);
-            };
-            eval(editorContent);
-            console.log = originalConsoleLog;
-            setOutput(true);
-            setExecutionResult(log.join('\n') || 'Code executed successfully (no output)');
+            const result = await executeCode(editorContent, selectedLanguage);
+            
+            if (result.success) {
+                const output = result.output || 'Code executed successfully (no output)';
+                const timeInfo = result.executionTime 
+                    ? `\n\n⏱️ Execution time: ${result.executionTime}s` 
+                    : '';
+                setExecutionResult(output + timeInfo);
+                toast.success('Code executed successfully!', {
+                    style: {
+                        background: '#10B981',
+                        color: '#fff',
+                    },
+                });
+            } else {
+                setExecutionResult(result.error || 'Execution failed');
+                toast.error('Execution failed', {
+                    style: {
+                        background: '#EF4444',
+                        color: '#fff',
+                    },
+                });
+            }
         } catch (error) {
             setExecutionResult(`Error: ${error.message}`);
-            setOutput(true);
+            toast.error('Execution error', {
+                style: {
+                    background: '#EF4444',
+                    color: '#fff',
+                },
+            });
+        } finally {
+            setIsExecuting(false);
         }
-    }, [editorContent]);
+    }, [editorContent, selectedLanguage]);
+
+    const handleLanguageChange = useCallback((newLanguage) => {
+        setSelectedLanguage(newLanguage);
+        // Optionally load default template for new language
+        if (editorContent === getDefaultCode(selectedLanguage) || editorContent.trim() === '') {
+            const newContent = getDefaultCode(newLanguage);
+            setEditorContent(newContent);
+            if (socket && roomId) {
+                socket.emit('editor-update', { content: newContent, roomId });
+            }
+        }
+        toast.success(`Switched to ${newLanguage}`, {
+            style: {
+                background: '#3B82F6',
+                color: '#fff',
+            },
+        });
+    }, [editorContent, selectedLanguage, socket, roomId]);
 
     const toggleSidebar = useCallback((type) => {
         if (isMobile) {
@@ -438,24 +484,47 @@ const EditorPage = () => {
 
             {/* Main Editor Area */}
             <div className={`flex-1 flex flex-col ${isMobile ? 'pt-16' : ''}`}>
+                {/* Editor Header with Language Selector */}
+                <div className='px-4 pt-4 pb-2 flex items-center justify-between bg-gray-900/50'>
+                    <div className='flex items-center space-x-3'>
+                        <span className='text-gray-400 text-sm'>Language:</span>
+                        <LanguageSelector 
+                            selectedLanguage={selectedLanguage}
+                            onLanguageChange={handleLanguageChange}
+                        />
+                    </div>
+                    <div className='flex items-center space-x-2'>
+                        <button
+                            onClick={handleExecuteCode}
+                            disabled={isExecuting}
+                            className='flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 disabled:from-gray-600 disabled:to-gray-700 text-white font-medium transition-all duration-300 transform hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:transform-none shadow-lg'
+                        >
+                            {isExecuting ? (
+                                <>
+                                    <div className='w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin'></div>
+                                    <span className='text-sm'>Running...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <svg className='w-5 h-5' fill='currentColor' viewBox='0 0 20 20'>
+                                        <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z' clipRule='evenodd' />
+                                    </svg>
+                                    <span className='text-sm'>Run Code</span>
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+
                 {/* Editor */}
-                <div className='flex-1 p-4 relative'>
+                <div className='flex-1 p-4 pt-2 relative'>
                     <CodeEditor
                         handleEditorChange={handleEditorChange}
                         editorContent={editorContent}
                         roomId={roomId}
                         username={username}
+                        language={selectedLanguage}
                     />
-                    
-                    {/* Run Button */}
-                    <button
-                        onClick={executeCode}
-                        className='absolute top-6 right-6 w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white flex justify-center items-center cursor-pointer transition-all duration-300 transform hover:scale-110 active:scale-95 shadow-lg shadow-green-500/25'
-                    >
-                        <svg className='w-6 h-6 sm:w-7 sm:h-7' fill='currentColor' viewBox='0 0 20 20'>
-                            <path fillRule='evenodd' d='M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z' clipRule='evenodd' />
-                        </svg>
-                    </button>
                 </div>
 
                 {/* Output Panel */}

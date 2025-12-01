@@ -1,10 +1,64 @@
 import React, { useEffect, useRef, useState } from 'react';
 import AceEditor from 'react-ace';
+import ace from 'ace-builds/src-noconflict/ace';
+
+// Configure Ace Editor base path
+ace.config.set('basePath', 'https://cdn.jsdelivr.net/npm/ace-builds@1.32.0/src-noconflict/');
+ace.config.set('modePath', 'https://cdn.jsdelivr.net/npm/ace-builds@1.32.0/src-noconflict/');
+ace.config.set('themePath', 'https://cdn.jsdelivr.net/npm/ace-builds@1.32.0/src-noconflict/');
+ace.config.set('workerPath', 'https://cdn.jsdelivr.net/npm/ace-builds@1.32.0/src-noconflict/');
+
+// Import language modes
 import 'ace-builds/src-noconflict/mode-javascript';
+import 'ace-builds/src-noconflict/mode-python';
+import 'ace-builds/src-noconflict/mode-java';
+import 'ace-builds/src-noconflict/mode-c_cpp';
+import 'ace-builds/src-noconflict/mode-csharp';
+import 'ace-builds/src-noconflict/mode-php';
+import 'ace-builds/src-noconflict/mode-ruby';
+import 'ace-builds/src-noconflict/mode-golang';
+import 'ace-builds/src-noconflict/mode-rust';
+import 'ace-builds/src-noconflict/mode-typescript';
+import 'ace-builds/src-noconflict/mode-html';
+import 'ace-builds/src-noconflict/mode-css';
+import 'ace-builds/src-noconflict/mode-sql';
+import 'ace-builds/src-noconflict/mode-sh';
+
+// Import themes
 import 'ace-builds/src-noconflict/theme-monokai';
+import 'ace-builds/src-noconflict/theme-github';
+import 'ace-builds/src-noconflict/theme-tomorrow_night';
+import 'ace-builds/src-noconflict/theme-dracula';
+
+// Import extensions for autocompletion
+import 'ace-builds/src-noconflict/ext-language_tools';
+
 import { useSocket } from '../context/SocketContext';
 
-const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => {
+// Map language names to Ace Editor modes
+const LANGUAGE_MODE_MAP = {
+    javascript: 'javascript',
+    python: 'python',
+    java: 'java',
+    cpp: 'c_cpp',
+    c: 'c_cpp',
+    csharp: 'csharp',
+    php: 'php',
+    ruby: 'ruby',
+    go: 'golang',
+    rust: 'rust',
+    typescript: 'typescript',
+    kotlin: 'java',
+    swift: 'swift',
+    r: 'r',
+    perl: 'perl',
+    bash: 'sh',
+    sql: 'sql',
+    html: 'html',
+    css: 'css',
+};
+
+const CodeEditor = ({ handleEditorChange, editorContent, roomId, username, language = 'javascript' }) => {
     const editorRef = useRef(null);
     const { socket } = useSocket();
     const [isTyping, setIsTyping] = useState({});
@@ -119,7 +173,7 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
 
             <AceEditor
                 ref={editorRef}
-                mode="javascript"
+                mode={LANGUAGE_MODE_MAP[language] || 'javascript'}
                 theme="monokai"
                 name="editor"
                 value={editorContent}
@@ -130,16 +184,20 @@ const CodeEditor = ({ handleEditorChange, editorContent, roomId, username }) => 
                 setOptions={{
                     enableBasicAutocompletion: true,
                     enableLiveAutocompletion: true,
-                    enableSnippets: true,
+                    enableSnippets: false, // Disable snippets to avoid 404 errors
                     showLineNumbers: true,
-                    tabSize: 2,
+                    tabSize: language === 'python' ? 4 : 2,
                     wrap: true,
                     showPrintMargin: false,
                     highlightActiveLine: true,
                     highlightSelectedWord: true,
+                    useWorker: false,
                 }}
+                enableBasicAutocompletion={true}
+                enableLiveAutocompletion={true}
+                enableSnippets={false}
                 editorProps={{
-                    $blockScrolling: true
+                    $blockScrolling: Infinity
                 }}
             />
         </div>
