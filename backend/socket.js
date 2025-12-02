@@ -10,6 +10,15 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true,
   },
+  // Performance optimizations for low latency
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 10000,
+  maxHttpBufferSize: 1e6, // 1MB
+  transports: ['websocket', 'polling'], // Prefer WebSocket
+  allowUpgrades: true,
+  perMessageDeflate: false, // Disable compression for lower latency
+  httpCompression: false,
 });
 
 const userSocketMap = new Map();
@@ -136,16 +145,30 @@ io.on('connection', (socket) => {
     io.to(data.roomId).emit('user-left', { username: data.username, socketId: socket.id, clients });
   });
 
-  // Handle editor content updates
+  // Handle editor content updates with throttling
+  let lastUpdate = 0;
+  const UPDATE_THROTTLE = 50; // 50ms throttle for editor updates
+  
   socket.on('editor-update', (data) => {
     if (!data.roomId) {
       socket.emit('error', 'Invalid room');
       return;
     }
 
-    // Update the editor content map
+    const now = Date.now();
+    
+    // Update the editor content map immediately
     editorContentMap.set(data.roomId, data.content);
-    socket.broadcast.to(data.roomId).emit("sending-updated-content", { content: data.content });
+    
+    // Throttle broadcasts to reduce network overhead
+    if (now - lastUpdate >= UPDATE_THROTTLE) {
+      // Pass through timestamp for latency measurement
+      socket.broadcast.to(data.roomId).emit("sending-updated-content", { 
+        content: data.content,
+        timestamp: data.timestamp // For load testing
+      });
+      lastUpdate = now;
+    }
   });
 
   // Handle user disconnection

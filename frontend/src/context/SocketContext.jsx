@@ -17,13 +17,32 @@ export const SocketContextProvider = ({ children }) => {
 
   useEffect(() => {
     if (!socket) {
-      // Initialize socket connection if not already initialized
-      const socketInstance = io(socketUrl);
+      // Initialize socket connection with optimizations for low latency
+      const socketInstance = io(socketUrl, {
+        transports: ['websocket', 'polling'], // Prefer WebSocket
+        upgrade: true,
+        rememberUpgrade: true,
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: 5,
+        timeout: 10000,
+        autoConnect: true,
+        // Performance optimizations
+        forceNew: false,
+        multiplex: true,
+        perMessageDeflate: false, // Disable compression for lower latency
+      });
 
       // When socket is successfully connected
       socketInstance.on('connect', () => {
+        console.log('Socket connected:', socketInstance.id);
         setSocket(socketInstance);
         setIsLoading(false);  // Set loading to false when socket is ready
+      });
+
+      socketInstance.on('connect_error', (error) => {
+        console.error('Socket connection error:', error);
       });
 
       // Cleanup on component unmount
@@ -33,7 +52,7 @@ export const SocketContextProvider = ({ children }) => {
           // }
       };
     }
-  }, [socket]);  // Only re-run when the socket is not initialized
+  }, [socket, socketUrl]);  // Only re-run when the socket is not initialized
 
   if (isLoading) {
     return <div>Loading...</div>;  // Show loading message or spinner

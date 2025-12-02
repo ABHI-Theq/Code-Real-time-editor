@@ -122,10 +122,22 @@ const EditorPage = () => {
         navigate('/');
     }, [socket, username, roomId, navigate]);
 
+    // Debounce timer ref for editor updates
+    const editorUpdateTimerRef = useRef(null);
+    
     const handleEditorChange = useCallback((newValue) => {
         setEditorContent(newValue);
+        
         if (socket && roomId) {
-            socket.emit('editor-update', { content: newValue, roomId });
+            // Clear previous timer
+            if (editorUpdateTimerRef.current) {
+                clearTimeout(editorUpdateTimerRef.current);
+            }
+            
+            // Debounce socket emit to reduce network calls (50ms delay)
+            editorUpdateTimerRef.current = setTimeout(() => {
+                socket.emit('editor-update', { content: newValue, roomId });
+            }, 50);
         }
     }, [socket, roomId]);
 

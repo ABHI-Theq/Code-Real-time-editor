@@ -1,0 +1,16 @@
+{
+  "name": "socketio-load-test",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Load testing for Socket.IO real-time editor",
+  "scripts": {
+    "test": "node load-test-simple.js",
+    "test:advanced": "node load-test-socketio.js",
+    "test:local": "set SOCKET_URL=http://localhost:3301 && node load-test-simple.js",
+    "test:production": "set SOCKET_URL=https://code-real-time-editor.onrender.com && node load-test-simple.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "socket.io-client": "^4.7.2"
+  }
+}
