@@ -23,15 +23,17 @@ export const SocketContextProvider = ({ children }) => {
         upgrade: true,
         rememberUpgrade: true,
         reconnection: true,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
+        reconnectionDelay: 500,
+        reconnectionDelayMax: 3000,
         reconnectionAttempts: 5,
-        timeout: 10000,
+        timeout: 20000,
         autoConnect: true,
         // Performance optimizations
         forceNew: false,
         multiplex: true,
         perMessageDeflate: false, // Disable compression for lower latency
+        withCredentials: false,
+        path: '/socket.io/',
       });
 
       // When socket is successfully connected

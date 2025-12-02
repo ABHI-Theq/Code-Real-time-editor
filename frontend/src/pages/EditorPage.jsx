@@ -134,10 +134,10 @@ const EditorPage = () => {
                 clearTimeout(editorUpdateTimerRef.current);
             }
             
-            // Debounce socket emit to reduce network calls (50ms delay)
+            // Debounce socket emit to reduce network calls (16ms = ~60fps)
             editorUpdateTimerRef.current = setTimeout(() => {
                 socket.emit('editor-update', { content: newValue, roomId });
-            }, 50);
+            }, 16);
         }
     }, [socket, roomId]);
 

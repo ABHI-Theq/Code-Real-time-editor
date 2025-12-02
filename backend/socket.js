@@ -19,6 +19,11 @@ const io = new Server(server, {
   allowUpgrades: true,
   perMessageDeflate: false, // Disable compression for lower latency
   httpCompression: false,
+  // Additional optimizations
+  connectTimeout: 45000,
+  path: '/socket.io/',
+  serveClient: false,
+  cookie: false,
 });
 
 const userSocketMap = new Map();
@@ -147,7 +152,7 @@ io.on('connection', (socket) => {
 
   // Handle editor content updates with throttling
   let lastUpdate = 0;
-  const UPDATE_THROTTLE = 50; // 50ms throttle for editor updates
+  const UPDATE_THROTTLE = 16; // 16ms throttle (~60fps) for editor updates
   
   socket.on('editor-update', (data) => {
     if (!data.roomId) {
