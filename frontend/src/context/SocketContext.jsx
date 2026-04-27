@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useMemo } from "react";
 import { io } from "socket.io-client";
 
 const SocketContext = createContext();
@@ -12,14 +12,13 @@ export const useSocket = () => {
 export const SocketContextProvider = ({ children }) => {
   const [socket, setSocket] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const socketUrl = import.meta.env.VITE_API_SOCKET_URL
-
+  const socketUrl = import.meta.env.VITE_API_SOCKET_URL;
 
   useEffect(() => {
+    // Only initialize if socket doesn't exist
     if (!socket) {
-      // Initialize socket connection with optimizations for low latency
       const socketInstance = io(socketUrl, {
-        transports: ['websocket', 'polling'], // Prefer WebSocket
+        transports: ['websocket', 'polling'],
         upgrade: true,
         rememberUpgrade: true,
         reconnection: true,
@@ -28,19 +27,17 @@ export const SocketContextProvider = ({ children }) => {
         reconnectionAttempts: 5,
         timeout: 20000,
         autoConnect: true,
-        // Performance optimizations
         forceNew: false,
         multiplex: true,
-        perMessageDeflate: false, // Disable compression for lower latency
+        perMessageDeflate: false, 
         withCredentials: false,
         path: '/socket.io/',
       });
 
-      // When socket is successfully connected
       socketInstance.on('connect', () => {
         console.log('Socket connected:', socketInstance.id);
         setSocket(socketInstance);
-        setIsLoading(false);  // Set loading to false when socket is ready
+        setIsLoading(false);
       });
 
       socketInstance.on('connect_error', (error) => {
@@ -49,19 +46,25 @@ export const SocketContextProvider = ({ children }) => {
 
       // Cleanup on component unmount
       return () => {
-          // if (socketInstance) {
-          //   socketInstance.disconnect();
-          // }
+        socketInstance.off('connect');
+        socketInstance.off('connect_error');
+        // socketInstance.disconnect(); // Uncomment if you want to hard close on unmount
       };
     }
-  }, [socket, socketUrl]);  // Only re-run when the socket is not initialized
+  }, [socketUrl]); // Removed 'socket' from deps to avoid re-triggering logic when socket is set
+
+  // Memoize the context value to prevent unnecessary downstream re-renders
+  const contextValue = useMemo(() => ({
+    socket,
+    isLoading
+  }), [socket, isLoading]);
 
   if (isLoading) {
-    return <div>Loading...</div>;  // Show loading message or spinner
+    return <div>Loading...</div>;
   }
 
   return (
-    <SocketContext.Provider value={{ socket }}>
+    <SocketContext.Provider value={contextValue}>
       {children}
     </SocketContext.Provider>
   );
